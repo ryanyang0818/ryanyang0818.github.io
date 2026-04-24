@@ -1,0 +1,1062 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<title>Claude Code 桌面版全解析 — 互動講解</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<template id="__bundler_thumbnail" data-bg-color="#FBF8F3">
+  <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+    <rect width="1200" height="800" fill="#FBF8F3"/>
+    <!-- 3 colored cards -->
+    <rect x="120" y="220" width="300" height="200" rx="24" fill="#E5EEF9" stroke="#2E77C9" stroke-width="6"/>
+    <rect x="450" y="220" width="300" height="200" rx="24" fill="#E4F2EA" stroke="#2E9E6F" stroke-width="6"/>
+    <rect x="780" y="220" width="300" height="200" rx="24" fill="#FCEADA" stroke="#D98234" stroke-width="6"/>
+    <!-- 3 bars for bottom row -->
+    <rect x="120" y="460" width="470" height="140" rx="24" fill="#EEE7FB" stroke="#8C6FD4" stroke-width="6"/>
+    <rect x="610" y="460" width="470" height="140" rx="24" fill="#FBE6EE" stroke="#C86B8E" stroke-width="6"/>
+    <!-- Title line -->
+    <rect x="260" y="120" width="680" height="36" rx="8" fill="#1F2230"/>
+    <rect x="360" y="172" width="480" height="14" rx="6" fill="#8A8F9E"/>
+  </svg>
+</template>
+<style>
+  :root {
+    --bg: #FBF8F3;
+    --ink: #1F2230;
+    --ink-soft: #4A5060;
+    --ink-mute: #8A8F9E;
+    --hair: #E7E2D8;
+    --chat:    #2E77C9;  /* 藍 */
+    --chat-bg: #E5EEF9;
+    --cowork:    #2E9E6F; /* 綠 */
+    --cowork-bg: #E4F2EA;
+    --code:    #D98234;  /* 橘 */
+    --code-bg: #FCEADA;
+    --why-need:  #8C6FD4;
+    --why-need-bg:#EEE7FB;
+    --why-not:   #C86B8E;
+    --why-not-bg:#FBE6EE;
+    --tip:     #2F5C8C;
+    --tip-bg:  #E2E9F3;
+    --glow-intensity: 1;
+    --focused-scale: 1.06;
+    --anim-speed: 1;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #000; }
+  body {
+    font-family: "Noto Sans TC", -apple-system, system-ui, sans-serif;
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---------- Slide frame ---------- */
+  .slide {
+    position: relative;
+    width: 1920px; height: 1080px;
+    background: var(--bg);
+    overflow: hidden;
+    padding: 56px 72px 40px;
+    display: flex; flex-direction: column;
+  }
+  .slide::before {
+    content: "";
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(1200px 600px at 15% -10%, rgba(46,119,201,0.05), transparent 60%),
+      radial-gradient(1000px 600px at 100% 0%, rgba(217,130,52,0.05), transparent 60%),
+      radial-gradient(900px 500px at 50% 110%, rgba(46,158,111,0.05), transparent 60%);
+    pointer-events: none;
+  }
+
+  /* ---------- Title ---------- */
+  .deck-title {
+    text-align: center;
+    margin: 0 auto 8px;
+    max-width: 1400px;
+    padding: 0 20px;
+  }
+  .deck-title h1 {
+    font-size: 50px; font-weight: 800; letter-spacing: 0.5px;
+    margin: 0 0 10px;
+  }
+  .deck-title h1 .brand { color: var(--code); }
+  .deck-title .subtitle {
+    font-size: 24px; color: var(--ink-soft); font-weight: 400;
+    letter-spacing: 0.3px;
+    line-height: 1.5;
+  }
+  .deck-title .subtitle b { color: var(--ink); font-weight: 600; }
+
+  /* ---------- Grid ---------- */
+  .grid {
+    position: relative;
+    flex: 1;
+    margin-top: 20px;
+    margin-bottom: 20px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: 1fr 0.85fr;
+    gap: 24px;
+    min-height: 0;
+  }
+  .card {
+    position: relative;
+    background: #fff;
+    border: 1.5px solid var(--hair);
+    border-radius: 18px;
+    padding: 22px 26px 24px;
+    display: flex; flex-direction: column;
+    cursor: pointer;
+    transition:
+      transform calc(480ms / var(--anim-speed)) cubic-bezier(.2,.7,.2,1),
+      box-shadow calc(480ms / var(--anim-speed)) cubic-bezier(.2,.7,.2,1),
+      opacity calc(420ms / var(--anim-speed)) ease,
+      filter calc(420ms / var(--anim-speed)) ease,
+      border-color calc(300ms / var(--anim-speed)) ease;
+    transform-origin: center center;
+    overflow: hidden;
+    z-index: 1;
+  }
+  .card:hover { border-color: rgba(0,0,0,0.12); }
+
+  /* The span-2 bottom tip occupies 2 columns in row 2 */
+  .card.tip-card { grid-column: span 2; }
+
+  /* Dim siblings when one is focused */
+  .grid.has-focus .card:not(.focused) {
+    opacity: 0.35;
+    filter: grayscale(0.3) blur(0.8px);
+    transform: scale(0.96);
+  }
+  body.no-dim .grid.has-focus .card:not(.focused) {
+    opacity: 1;
+    filter: none;
+    transform: scale(1);
+  }
+  .grid.has-focus .card.focused {
+    z-index: 10;
+    transform: scale(var(--focused-scale, 1.06));
+    box-shadow:
+      0 0 0 calc(3px * var(--glow-intensity)) var(--accent, var(--code)),
+      0 0 0 calc(10px * var(--glow-intensity)) color-mix(in oklab, var(--accent, var(--code)) calc(18% * var(--glow-intensity)), transparent),
+      0 30px 60px -10px rgba(0,0,0,0.25),
+      0 0 calc(80px * var(--glow-intensity)) calc(10px * var(--glow-intensity)) color-mix(in oklab, var(--accent, var(--code)) calc(25% * var(--glow-intensity)), transparent);
+    border-color: var(--accent, var(--code));
+  }
+
+  /* Hide tags when tweak is off */
+  body.no-tags .tags { display: none; }
+
+  /* Card top bar (colored chip with number + title) */
+  .card-head {
+    display: flex; align-items: center; gap: 14px;
+    margin-bottom: 14px;
+  }
+  .num {
+    width: 36px; height: 36px; flex: 0 0 36px;
+    border-radius: 10px;
+    background: var(--accent, var(--ink));
+    color: #fff;
+    font-family: "JetBrains Mono", monospace;
+    font-weight: 600;
+    font-size: 17px;
+    display: grid; place-items: center;
+    letter-spacing: 0.5px;
+  }
+  .card-title {
+    font-size: 26px; font-weight: 700;
+    color: var(--ink);
+    letter-spacing: 0.3px;
+    line-height: 1.2;
+  }
+  .card-title .en {
+    font-family: "JetBrains Mono", monospace;
+    font-weight: 600;
+    color: var(--accent, var(--ink));
+    margin-right: 6px;
+  }
+
+  .card-body {
+    display: flex;
+    gap: 18px;
+    flex: 1;
+    min-height: 0;
+  }
+  .illus {
+    flex: 0 0 44%;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 12px;
+    padding: 14px;
+    background: var(--accent-bg, #F5F2EC);
+    min-height: 180px;
+  }
+  .illus svg { width: 100%; height: 100%; max-height: 200px; }
+  .desc {
+    flex: 1;
+    display: flex; flex-direction: column;
+    justify-content: center;
+    gap: 10px;
+  }
+  .desc .summary {
+    font-size: 16px; line-height: 1.65;
+    color: var(--ink-soft);
+  }
+  .desc .summary b { color: var(--ink); font-weight: 600; }
+  .tags {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    margin-top: 4px;
+  }
+  .tag {
+    font-size: 12px; padding: 3px 10px; border-radius: 999px;
+    background: var(--accent-bg, #F0EDE5);
+    color: var(--accent, var(--ink));
+    font-weight: 500;
+    font-family: "JetBrains Mono", monospace;
+    letter-spacing: 0.3px;
+  }
+
+  /* Grid row behavior: in inline mode, allow focused card to expand its row */
+  body[data-popup-mode="inline"] .grid.has-focus {
+    grid-template-rows: auto auto;
+  }
+  body[data-popup-mode="inline"] .card.focused {
+    overflow: visible;
+  }
+
+  /* Detail note — INLINE mode (default): expands inside the focused card */
+  .detail {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1.5px dashed color-mix(in oklab, var(--accent, var(--ink)) 40%, transparent);
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: max-height 500ms ease, opacity 400ms ease, margin-top 500ms ease, padding-top 500ms ease;
+  }
+  body[data-popup-mode="inline"] .card.focused .detail {
+    max-height: 400px;
+    opacity: 1;
+  }
+  /* the tip card has no detail shown when focused inline (not enough room) */
+  body[data-popup-mode="inline"] .tip-card.focused .detail {
+    max-height: 0;
+    opacity: 0;
+    margin-top: 0;
+    padding-top: 0;
+    border: none;
+  }
+
+  /* Detail — MODAL mode: floating panel over dimmed backdrop */
+  .detail-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 300ms ease;
+  }
+  .detail-modal.open { opacity: 1; pointer-events: auto; }
+  .detail-modal-backdrop {
+    position: absolute; inset: 0;
+    background: rgba(20, 18, 12, 0.55);
+    backdrop-filter: blur(4px);
+  }
+  .detail-modal-card {
+    position: relative;
+    width: 720px; max-width: 90%;
+    background: #fff;
+    border-radius: 20px;
+    padding: 36px 44px 40px;
+    box-shadow:
+      0 0 0 3px var(--accent, var(--ink)),
+      0 0 120px 10px color-mix(in oklab, var(--accent, var(--ink)) 40%, transparent),
+      0 30px 80px rgba(0,0,0,0.35);
+    transform: scale(0.92) translateY(10px);
+    transition: transform 380ms cubic-bezier(.2,.7,.2,1);
+  }
+  .detail-modal.open .detail-modal-card { transform: scale(1) translateY(0); }
+  .detail-modal-head {
+    display: flex; align-items: center; gap: 14px;
+    margin-bottom: 18px;
+    padding-bottom: 18px;
+    border-bottom: 1.5px solid var(--hair);
+  }
+  .detail-modal-head .num {
+    width: 44px; height: 44px; flex: 0 0 44px; border-radius: 12px;
+    font-size: 20px;
+  }
+  .detail-modal-head .ttl {
+    font-size: 26px; font-weight: 700; color: var(--ink);
+  }
+  .detail-modal-head .ttl .en {
+    font-family: "JetBrains Mono", monospace; color: var(--accent); margin-right: 6px;
+  }
+  .detail-modal-body h4 {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 13px; letter-spacing: 0.6px; text-transform: uppercase;
+    color: var(--accent); margin: 0 0 12px;
+  }
+  .detail-modal-body ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
+  .detail-modal-body li {
+    font-size: 17px; line-height: 1.6; color: var(--ink-soft);
+    padding-left: 18px; position: relative;
+  }
+  .detail-modal-body li::before {
+    content: ""; position: absolute; left: 0; top: 10px;
+    width: 7px; height: 7px; border-radius: 2px; background: var(--accent);
+  }
+  .detail-modal-body li b { color: var(--ink); font-weight: 600; }
+  .detail-modal-close {
+    position: absolute; top: 14px; right: 14px;
+    width: 32px; height: 32px; border-radius: 8px;
+    border: none; background: transparent; color: var(--ink-mute);
+    font-size: 18px; cursor: pointer;
+  }
+  .detail-modal-close:hover { background: rgba(0,0,0,0.06); color: var(--ink); }
+
+  /* Detail — SIDEBAR mode: slides in from the right */
+  .detail-sidebar {
+    position: fixed;
+    top: 0; right: 0; bottom: 0;
+    width: 540px; max-width: 40vw;
+    background: #fff;
+    box-shadow: -20px 0 60px rgba(0,0,0,0.2);
+    z-index: 200;
+    transform: translateX(100%);
+    transition: transform 420ms cubic-bezier(.2,.7,.2,1);
+    padding: 48px 44px;
+    border-left: 4px solid var(--accent, var(--ink));
+    overflow-y: auto;
+  }
+  .detail-sidebar.open { transform: translateX(0); }
+  .detail-sidebar .detail-modal-head { margin-bottom: 24px; padding-bottom: 18px; border-bottom: 1.5px solid var(--hair); display:flex; align-items:center; gap:14px; }
+  .detail-sidebar h4 {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 13px; letter-spacing: 0.6px; text-transform: uppercase;
+    color: var(--accent); margin: 0 0 14px;
+  }
+  .detail-sidebar ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 12px; }
+  .detail-sidebar li {
+    font-size: 17px; line-height: 1.6; color: var(--ink-soft);
+    padding-left: 18px; position: relative;
+  }
+  .detail-sidebar li::before {
+    content: ""; position: absolute; left: 0; top: 10px;
+    width: 7px; height: 7px; border-radius: 2px; background: var(--accent);
+  }
+  .detail-sidebar li b { color: var(--ink); font-weight: 600; }
+  .detail h4 {
+    font-size: 14px; font-weight: 600;
+    margin: 0 0 8px;
+    color: var(--accent, var(--ink));
+    font-family: "JetBrains Mono", monospace;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .detail ul {
+    margin: 0; padding: 0; list-style: none;
+    display: flex; flex-direction: column; gap: 7px;
+  }
+  .detail li {
+    font-size: 15px; line-height: 1.6; color: var(--ink-soft);
+    padding-left: 16px;
+    position: relative;
+  }
+  .detail li::before {
+    content: "";
+    position: absolute; left: 0; top: 9px;
+    width: 6px; height: 6px; border-radius: 2px;
+    background: var(--accent, var(--ink));
+  }
+  .detail li b { color: var(--ink); font-weight: 600; }
+
+  /* Per-card accents */
+  .card.chat    { --accent: var(--chat);    --accent-bg: var(--chat-bg);    }
+  .card.cowork  { --accent: var(--cowork);  --accent-bg: var(--cowork-bg);  }
+  .card.code    { --accent: var(--code);    --accent-bg: var(--code-bg);    }
+  .card.why-need{ --accent: var(--why-need);--accent-bg: var(--why-need-bg);}
+  .card.why-not { --accent: var(--why-not); --accent-bg: var(--why-not-bg); }
+  .card.tip-card{ --accent: var(--tip);     --accent-bg: var(--tip-bg);     }
+
+  /* Tip card slim layout */
+  .tip-card .card-body { align-items: center; gap: 22px; }
+  .tip-card .illus { flex: 0 0 22%; min-height: 120px; }
+  .tip-card .desc { gap: 10px; justify-content: center; }
+  .tip-card .routes {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  }
+  .route {
+    display: flex; gap: 10px; align-items: center;
+    background: #FAF7F1; border: 1px solid var(--hair);
+    border-radius: 10px; padding: 10px 14px;
+  }
+  .route .rb {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 13px; font-weight: 600;
+    color: #fff; background: var(--tip);
+    padding: 4px 10px; border-radius: 6px;
+    white-space: nowrap;
+    flex: 0 0 auto;
+  }
+  .route .rt { font-size: 15px; line-height: 1.45; color: var(--ink-soft); }
+  .route .rt b { color: var(--ink); font-weight: 600; }
+
+  /* ---------- Progress footer ---------- */
+  .progress {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    gap: 10px;
+    pointer-events: none;
+    z-index: 50;
+  }
+  .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: #D5D0C4;
+    transition: transform 200ms, background 200ms;
+  }
+  .dot.on { background: var(--ink); transform: scale(1.3); }
+
+  /* Top-right utilities */
+  .util {
+    position: absolute;
+    top: 16px; right: 24px;
+    display: flex; gap: 10px;
+    z-index: 60;
+  }
+  .util button {
+    background: #fff; border: 1.5px solid var(--hair);
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 13px; color: var(--ink-soft);
+    font-family: "JetBrains Mono", monospace;
+    cursor: pointer;
+    display: flex; align-items: center; gap: 6px;
+    transition: all 200ms;
+  }
+  .util button:hover { border-color: var(--ink); color: var(--ink); }
+  .util button.on {
+    background: var(--ink); color: #fff; border-color: var(--ink);
+  }
+
+  /* reset focus hotspot */
+  .reset-hint {
+    position: absolute;
+    left: 0; right: 0; bottom: 36px;
+    text-align: center;
+    font-size: 12px;
+    font-family: "JetBrains Mono", monospace;
+    color: var(--ink-mute);
+    opacity: 0;
+    transition: opacity 300ms;
+    pointer-events: none;
+    z-index: 40;
+    letter-spacing: 0.5px;
+  }
+  .grid.has-focus ~ .reset-hint { opacity: 1; }
+
+  /* Illustration primitives */
+  .g-dot { fill: var(--accent); }
+  .g-line { stroke: var(--accent); fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+  .g-fill-soft { fill: var(--accent); opacity: 0.15; }
+  .g-fill-mid  { fill: var(--accent); opacity: 0.35; }
+
+</style>
+</head>
+<body>
+
+<deck-stage width="1920" height="1080">
+
+  <section data-screen-label="01 三大模式與 Skill 邏輯">
+    <div class="slide">
+
+      <div class="util">
+        <button id="musicBtn" title="背景音樂">
+          <span id="musicIcon">♪</span><span id="musicLabel">播放音樂</span>
+        </button>
+        <button id="resetBtn" title="重置聚焦">
+          <span>⤺</span><span>重置</span>
+        </button>
+      </div>
+
+      <header class="deck-title">
+        <h1><span class="brand">Claude Code</span> 桌面版全解析：三大模式與 Skill 邏輯攻略</h1>
+        <div class="subtitle">
+          一句話看懂三大功能：<b>Chat（概念對話）</b>、<b>Cowork（多步驟任務規劃）</b>、<b>Code（本地檔案實作）</b>三位一體，通盤從靈感到落地的開發全流程。
+        </div>
+      </header>
+
+      <div class="grid" id="grid">
+
+        <!-- 1. Chat -->
+        <article class="card chat" data-id="chat">
+          <div class="card-head">
+            <div class="num">01</div>
+            <div class="card-title"><span class="en">Chat</span>模式：知識諮詢中心</div>
+          </div>
+          <div class="card-body">
+            <div class="illus">
+              <!-- brain + lightbulb + graph -->
+              <svg viewBox="0 0 240 160">
+                <path class="g-line" d="M40,110 q10,-40 40,-40 q30,0 36,30 q2,20 -10,30 q-20,14 -50,-2 q-20,-10 -16,-18z"/>
+                <circle cx="72" cy="80" r="3" class="g-dot"/>
+                <circle cx="95" cy="72" r="3" class="g-dot"/>
+                <circle cx="85" cy="100" r="3" class="g-dot"/>
+                <circle cx="60" cy="95" r="3" class="g-dot"/>
+                <path class="g-line" d="M72,80 L95,72 M72,80 L60,95 M85,100 L60,95 M85,100 L95,72"/>
+                <!-- bulb -->
+                <circle cx="36" cy="48" r="14" class="g-fill-soft"/>
+                <path class="g-line" d="M36,34 v-8 M36,70 v-8 M22,48 h-8 M58,48 h-8 M26,38 l-6,-6 M46,38 l6,-6"/>
+                <!-- flow tree right -->
+                <rect x="168" y="40" width="48" height="20" rx="4" class="g-fill-mid"/>
+                <rect x="150" y="78" width="44" height="18" rx="4" class="g-fill-soft"/>
+                <rect x="200" y="78" width="38" height="18" rx="4" class="g-fill-soft"/>
+                <rect x="150" y="112" width="44" height="18" rx="4" class="g-fill-soft"/>
+                <rect x="200" y="112" width="38" height="18" rx="4" class="g-fill-soft"/>
+                <path class="g-line" d="M192,60 v8 M192,68 h-20 v10 M192,68 h27 v10 M172,96 v16 M219,96 v16"/>
+              </svg>
+            </div>
+            <div class="desc">
+              <div class="summary">
+                專注於<b>邏輯諮詢、代碼解釋與架構規劃</b>，不直接修改本地檔案，是開發者的<b>靈感百寶箱</b>。
+              </div>
+              <div class="tags">
+                <span class="tag">架構討論</span>
+                <span class="tag">概念釐清</span>
+                <span class="tag">唯讀</span>
+              </div>
+            </div>
+          </div>
+          <div class="detail">
+            <h4>講解重點</h4>
+            <ul>
+              <li>把它當成<b>你的資深同事</b>：遇到不確定的設計問題，先在 Chat 裡討論。</li>
+              <li>不會碰你的檔案系統，可以<b>安心貼任何片段</b>做解釋與 code review。</li>
+              <li>適合場景：<b>釐清需求</b>、比較三種寫法的優劣、學一個新 API 的心智模型。</li>
+              <li>可配合 <b>Skill</b> 擴充搜尋、數據查詢等能力（稍後在第 4 格說明）。</li>
+            </ul>
+          </div>
+        </article>
+
+        <!-- 2. Cowork -->
+        <article class="card cowork" data-id="cowork">
+          <div class="card-head">
+            <div class="num">02</div>
+            <div class="card-title"><span class="en">Cowork</span>模式：自主任務代劃</div>
+          </div>
+          <div class="card-body">
+            <div class="illus">
+              <!-- robot arm + checklist + calendar -->
+              <svg viewBox="0 0 240 160">
+                <!-- arm -->
+                <rect x="20" y="120" width="60" height="14" rx="3" class="g-fill-mid"/>
+                <path class="g-line" d="M50,120 l0,-40 l30,-30"/>
+                <circle cx="50" cy="120" r="5" class="g-fill-mid"/>
+                <circle cx="50" cy="80" r="5" class="g-fill-mid"/>
+                <rect x="74" y="44" width="22" height="12" rx="2" class="g-fill-mid"/>
+                <!-- checklist card -->
+                <rect x="108" y="30" width="72" height="96" rx="6" fill="#fff" stroke="currentColor" style="stroke:var(--accent)" stroke-width="2"/>
+                <rect x="118" y="46" width="12" height="10" rx="2" class="g-fill-soft"/>
+                <path class="g-line" d="M120,51 l2,3 l6,-6"/>
+                <rect x="134" y="48" width="38" height="5" rx="2" class="g-fill-mid"/>
+                <rect x="118" y="66" width="12" height="10" rx="2" class="g-fill-soft"/>
+                <path class="g-line" d="M120,71 l2,3 l6,-6"/>
+                <rect x="134" y="68" width="32" height="5" rx="2" class="g-fill-mid"/>
+                <rect x="118" y="86" width="12" height="10" rx="2" class="g-fill-soft"/>
+                <rect x="134" y="88" width="40" height="5" rx="2" class="g-fill-soft"/>
+                <rect x="118" y="106" width="12" height="10" rx="2" class="g-fill-soft"/>
+                <rect x="134" y="108" width="28" height="5" rx="2" class="g-fill-soft"/>
+                <!-- gear -->
+                <circle cx="210" cy="120" r="16" class="g-fill-soft"/>
+                <circle cx="210" cy="120" r="5" fill="#fff"/>
+                <path class="g-line" d="M210,100 v6 M210,134 v6 M190,120 h6 M224,120 h6 M196,106 l4,4 M220,130 l4,4 M224,110 l-4,4 M196,134 l4,-4"/>
+              </svg>
+            </div>
+            <div class="desc">
+              <div class="summary">
+                具備更高的自主性，能根據規劃進行<b>多步驟的任務協調與狀態管理</b>。
+              </div>
+              <div class="tags">
+                <span class="tag">多步驟</span>
+                <span class="tag">自主執行</span>
+                <span class="tag">狀態追蹤</span>
+              </div>
+            </div>
+          </div>
+          <div class="detail">
+            <h4>講解重點</h4>
+            <ul>
+              <li>Cowork = <b>AI 副駕駛</b>：你給目標，它幫你拆任務、照順序跑。</li>
+              <li>適合<b>中等複雜度的流程</b>：爬資料 → 分析 → 生報告；找 bug → 定位 → 驗證。</li>
+              <li>與 Code 模式的差別：Cowork 偏<b>跨工具協同</b>，Code 偏<b>貼著檔案改</b>。</li>
+              <li>可讓它自己決定何時呼叫 <b>Skill</b> 或搜尋，不用你逐步下指令。</li>
+            </ul>
+          </div>
+        </article>
+
+        <!-- 3. Code -->
+        <article class="card code" data-id="code">
+          <div class="card-head">
+            <div class="num">03</div>
+            <div class="card-title"><span class="en">Code</span>模式：本地開發利器</div>
+          </div>
+          <div class="card-body">
+            <div class="illus">
+              <!-- terminal + folder + disk -->
+              <svg viewBox="0 0 240 160">
+                <rect x="14" y="26" width="130" height="88" rx="8" fill="#1F2230"/>
+                <circle cx="26" cy="38" r="3" fill="#FF6B6B"/>
+                <circle cx="36" cy="38" r="3" fill="#FDCB6E"/>
+                <circle cx="46" cy="38" r="3" fill="#55E6C1"/>
+                <text x="24" y="64" font-family="JetBrains Mono, monospace" font-size="10" fill="#A8E6CF">$ npm install</text>
+                <text x="24" y="82" font-family="JetBrains Mono, monospace" font-size="10" fill="#FDCB6E">$ git commit</text>
+                <text x="24" y="100" font-family="JetBrains Mono, monospace" font-size="10" fill="#fff">$ _</text>
+                <!-- folder with file chips -->
+                <path d="M118,94 l8,-10 h40 l6,10 h40 v40 h-94 z" class="g-fill-mid"/>
+                <rect x="128" y="72" width="18" height="20" rx="3" fill="#F5CE4E"/>
+                <text x="130" y="86" font-family="JetBrains Mono, monospace" font-size="8" fill="#111">.js</text>
+                <rect x="148" y="66" width="18" height="20" rx="3" fill="#3E7AC2"/>
+                <text x="150" y="80" font-family="JetBrains Mono, monospace" font-size="8" fill="#fff">.py</text>
+                <!-- disk -->
+                <rect x="190" y="30" width="42" height="56" rx="5" class="g-fill-soft"/>
+                <circle cx="211" cy="58" r="10" fill="#fff" stroke="currentColor" style="stroke:var(--accent)" stroke-width="2"/>
+                <circle cx="211" cy="58" r="3" class="g-fill-mid"/>
+              </svg>
+            </div>
+            <div class="desc">
+              <div class="summary">
+                直接與本地<b>檔案系統及終端機（Terminal）</b>對接，能撰寫、編輯代碼進行行指令，是<b>實作的核心</b>。
+              </div>
+              <div class="tags">
+                <span class="tag">檔案讀寫</span>
+                <span class="tag">Shell</span>
+                <span class="tag">實作</span>
+              </div>
+            </div>
+          </div>
+          <div class="detail">
+            <h4>講解重點</h4>
+            <ul>
+              <li>Code 模式 = <b>本地實作台</b>，可直接建立檔案、執行測試、跑 git 指令。</li>
+              <li>它跑在你的機器上，<b>不需要雲端沙盒</b>，速度快、權限大。</li>
+              <li>最適合：<b>寫功能、改 bug、跑 build、跟現有 repo 整合</b>。</li>
+              <li>記得用<b>分支</b>工作，避免直接動 main，這是 Code 模式最佳實務。</li>
+            </ul>
+          </div>
+        </article>
+
+        <!-- 4. Why Chat needs Skill -->
+        <article class="card why-need" data-id="why-need">
+          <div class="card-head">
+            <div class="num">04</div>
+            <div class="card-title">為什麼 <span class="en">Claude Chat</span> 需要 Skill？</div>
+          </div>
+          <div class="card-body">
+            <div class="illus">
+              <svg viewBox="0 0 240 160">
+                <!-- cloud sandbox -->
+                <path d="M52,96 a22,22 0 0 1 0,-44 a28,28 0 0 1 56,2 a18,18 0 0 1 12,42 z"
+                      class="g-fill-soft" stroke="currentColor" style="stroke:var(--accent)" stroke-width="2"/>
+                <text x="60" y="82" font-family="Noto Sans TC, sans-serif" font-size="14" font-weight="600" fill="#4A5060">雲端沙盒</text>
+                <!-- icons around -->
+                <g transform="translate(150,30)">
+                  <rect x="0" y="0" width="28" height="28" rx="6" class="g-fill-soft"/>
+                  <circle cx="12" cy="12" r="5" fill="none" stroke="currentColor" style="stroke:var(--accent)" stroke-width="2"/>
+                  <path class="g-line" d="M16,16 l6,6"/>
+                </g>
+                <g transform="translate(194,30)">
+                  <rect x="0" y="0" width="28" height="28" rx="6" class="g-fill-soft"/>
+                  <text x="5" y="19" font-family="JetBrains Mono, monospace" font-size="14" fill="#8C6FD4">&lt;/&gt;</text>
+                </g>
+                <g transform="translate(150,74)">
+                  <rect x="0" y="0" width="28" height="28" rx="6" class="g-fill-soft"/>
+                  <path class="g-line" d="M6,8 h16 M6,14 h16 M6,20 h10"/>
+                </g>
+                <g transform="translate(194,74)">
+                  <rect x="0" y="0" width="28" height="28" rx="6" class="g-fill-soft"/>
+                  <ellipse cx="14" cy="9" rx="8" ry="3" class="g-fill-mid"/>
+                  <path class="g-line" d="M6,9 v10 a8,3 0 0 0 16,0 v-10"/>
+                </g>
+                <!-- globe bottom -->
+                <g transform="translate(150,118)">
+                  <circle cx="14" cy="14" r="12" fill="none" stroke="currentColor" style="stroke:var(--accent)" stroke-width="2"/>
+                  <path class="g-line" d="M2,14 h24 M14,2 a18,12 0 0 1 0,24 M14,2 a18,12 0 0 0 0,24"/>
+                </g>
+                <text x="184" y="138" font-family="Noto Sans TC, sans-serif" font-size="11" fill="#4A5060">外部數據交換</text>
+              </svg>
+            </div>
+            <div class="desc">
+              <div class="summary">
+                因為雲端對話環境是受限的「<b>沙盒</b>」，Skill（如搜尋、程式碼執行）是幫 AI <b>突破限制、外掛實時資訊</b>的必備條件。
+              </div>
+              <div class="tags">
+                <span class="tag">WebSearch</span>
+                <span class="tag">CodeExec</span>
+                <span class="tag">DB</span>
+              </div>
+            </div>
+          </div>
+          <div class="detail">
+            <h4>講解重點</h4>
+            <ul>
+              <li>Chat 本身<b>只會講話</b>——想查資料、跑程式就必須靠 Skill。</li>
+              <li>常用 Skill：<b>網頁搜尋、程式碼執行、資料庫查詢、連接公司內部系統</b>。</li>
+              <li>把 Skill 想成<b>雲端 Chat 的手腳</b>，沒 Skill 只能動腦，無法動手。</li>
+              <li>這也是為什麼同樣的 Claude，<b>網頁版 vs 桌面版</b>體驗會有落差。</li>
+            </ul>
+          </div>
+        </article>
+
+        <!-- 5. Why Code doesn't need Skill -->
+        <article class="card why-not" data-id="why-not">
+          <div class="card-head">
+            <div class="num">05</div>
+            <div class="card-title">為什麼 <span class="en">Claude Code</span> 不需要 Skill？</div>
+          </div>
+          <div class="card-body">
+            <div class="illus">
+              <svg viewBox="0 0 240 160">
+                <!-- terminal 1 -->
+                <rect x="10" y="24" width="90" height="64" rx="6" fill="#1F2230"/>
+                <circle cx="20" cy="34" r="2.2" fill="#FF6B6B"/>
+                <circle cx="28" cy="34" r="2.2" fill="#FDCB6E"/>
+                <circle cx="36" cy="34" r="2.2" fill="#55E6C1"/>
+                <text x="18" y="52" font-family="JetBrains Mono, monospace" font-size="8" fill="#FDCB6E">&gt; ls</text>
+                <text x="18" y="64" font-family="JetBrains Mono, monospace" font-size="7" fill="#A8E6CF">a.py</text>
+                <text x="18" y="74" font-family="JetBrains Mono, monospace" font-size="7" fill="#A8E6CF">b.py</text>
+                <text x="18" y="84" font-family="JetBrains Mono, monospace" font-size="7" fill="#fff">_</text>
+                <!-- terminal 2 -->
+                <rect x="108" y="46" width="90" height="64" rx="6" fill="#2A2A2A"/>
+                <circle cx="118" cy="56" r="2.2" fill="#FF6B6B"/>
+                <circle cx="126" cy="56" r="2.2" fill="#FDCB6E"/>
+                <circle cx="134" cy="56" r="2.2" fill="#55E6C1"/>
+                <text x="116" y="74" font-family="JetBrains Mono, monospace" font-size="7" fill="#8ab8ff">npm</text>
+                <text x="116" y="84" font-family="JetBrains Mono, monospace" font-size="7" fill="#e0e0e0">run dev</text>
+                <text x="116" y="96" font-family="JetBrains Mono, monospace" font-size="7" fill="#A8E6CF">ready ✓</text>
+                <text x="130" y="138" font-family="Noto Sans TC, sans-serif" font-size="11" font-weight="600" fill="#4A5060">本地終端機（具備權限）</text>
+                <!-- 3 rows of icons right-ish -->
+                <g transform="translate(204,14)">
+                  <path class="g-line" d="M0,6 l4,4 l10,-10"/>
+                  <text x="20" y="10" font-family="Noto Sans TC, sans-serif" font-size="11" fill="#4A5060">讀寫權限</text>
+                </g>
+                <g transform="translate(204,50)">
+                  <path class="g-line" d="M0,0 h14 l-4,-4 M0,0 l4,4"/>
+                  <text x="20" y="4" font-family="Noto Sans TC, sans-serif" font-size="11" fill="#4A5060">指令執行力</text>
+                </g>
+                <g transform="translate(204,86)">
+                  <rect x="0" y="0" width="14" height="10" rx="2" class="g-fill-mid"/>
+                  <text x="20" y="10" font-family="Noto Sans TC, sans-serif" font-size="11" fill="#4A5060">本地檔案系統</text>
+                </g>
+              </svg>
+            </div>
+            <div class="desc">
+              <div class="summary">
+                Code 模式進行在你的本地終端，存在直接具備豐富權限與指令執行力，<b>本地環境本身就是它最強大的實作空間</b>。
+              </div>
+              <div class="tags">
+                <span class="tag">filesystem</span>
+                <span class="tag">shell</span>
+                <span class="tag">zero-install</span>
+              </div>
+            </div>
+          </div>
+          <div class="detail">
+            <h4>講解重點</h4>
+            <ul>
+              <li>你的電腦本身就是最強的工具箱，<b>Skill 存在的目的在本機上沒有必要</b>。</li>
+              <li>能直接用：<b>cat、grep、git、npm、python、docker…</b> 任何已裝的 CLI。</li>
+              <li>這也代表你要<b>謹慎授權</b>——Code 模式有破壞力，請用 repo 隔離。</li>
+              <li>建議工作流：先讓 Chat 想清楚 → 再切 Code 實作 → 出錯切回 Chat 討論。</li>
+            </ul>
+          </div>
+        </article>
+
+        <!-- 6. Tip (span 2) -->
+        <article class="card tip-card" data-id="tip">
+          <div class="card-head">
+            <div class="num">06</div>
+            <div class="card-title">進階實作技巧：想在 <span class="en">Code</span> 模式使用 Skill 怎麼辦？</div>
+          </div>
+          <div class="card-body">
+            <div class="illus">
+              <svg viewBox="0 0 200 140">
+                <rect x="10" y="30" width="180" height="80" rx="10" fill="#1F2230"/>
+                <circle cx="24" cy="42" r="3" fill="#FF6B6B"/>
+                <circle cx="34" cy="42" r="3" fill="#FDCB6E"/>
+                <circle cx="44" cy="42" r="3" fill="#55E6C1"/>
+                <text x="22" y="68" font-family="JetBrains Mono, monospace" font-size="11" fill="#8ab8ff">claude</text>
+                <text x="22" y="84" font-family="JetBrains Mono, monospace" font-size="11" fill="#FDCB6E">  --skill search</text>
+                <text x="22" y="100" font-family="JetBrains Mono, monospace" font-size="11" fill="#A8E6CF">→ ok</text>
+              </svg>
+            </div>
+            <div class="desc">
+              <div class="routes">
+                <div class="route">
+                  <div class="rb">Route A</div>
+                  <div class="rt"><b>透過 CLI 內建工具調用</b>（如網路搜尋）</div>
+                </div>
+                <div class="route">
+                  <div class="rb">Route B</div>
+                  <div class="rt"><b>在對話中切換為 Cowork 模式</b>，編修更複雜的工具鏈。</div>
+                </div>
+              </div>
+              <div class="summary" style="font-size:15px; line-height:1.55;">
+                小結：<b>Chat × Cowork × Code</b> 三者自然切換；Skill 是 <b>Chat/Cowork</b> 的外掛，<b>Code</b> 則以本地能力取代。
+              </div>
+            </div>
+          </div>
+          <div class="detail">
+            <h4>講解重點</h4>
+            <ul>
+              <li>Code 模式的 <b>CLI</b> 已內建常見工具，不用再掛 Skill（簡單直接）。</li>
+              <li>遇到需要<b>跨系統/流程</b>的情境，主動切到 Cowork，讓它做任務編排。</li>
+              <li>心法：<b>Chat 想、Cowork 排、Code 做</b>——三者分工，流程最順。</li>
+              <li>最後提醒：<b>可隨時 @ 切換模式</b>，不要卡在一個模式硬撐。</li>
+            </ul>
+          </div>
+        </article>
+
+      </div>
+
+      <div class="reset-hint">按 ESC 或點擊背景以重置聚焦</div>
+
+    </div>
+  </section>
+
+</deck-stage>
+
+<!-- Background music (royalty-free lo-fi) -->
+<audio id="bgm" loop preload="auto" crossorigin="anonymous">
+  <source src="https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3?filename=lofi-study-112191.mp3" type="audio/mpeg">
+</audio>
+
+<!-- Tweaks + floating detail host -->
+<div id="tweaksRoot"></div>
+
+<script src="deck-stage.js"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+
+<script type="text/babel">
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "popupMode": "sidebar",
+  "autoFocusOnHover": false,
+  "glowIntensity": 0.5,
+  "dimOthers": true,
+  "scaleFocused": 1.15,
+  "animationSpeed": 2,
+  "showTags": true,
+  "autoPlayMusic": false
+}/*EDITMODE-END*/;
+
+function App() {
+  const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const [focusedId, setFocusedId] = React.useState(null);
+  const hoverTimer = React.useRef(null);
+
+  // Collect card data on mount
+  const cardsRef = React.useRef([]);
+  React.useEffect(() => {
+    cardsRef.current = [...document.querySelectorAll('#grid .card')];
+  }, []);
+
+  // Apply body-level tweaks
+  React.useEffect(() => {
+    document.body.dataset.popupMode = t.popupMode;
+    document.documentElement.style.setProperty('--glow-intensity', t.glowIntensity);
+    document.documentElement.style.setProperty('--focused-scale', t.scaleFocused);
+    document.documentElement.style.setProperty('--anim-speed', t.animationSpeed);
+    document.body.classList.toggle('no-dim', !t.dimOthers);
+    document.body.classList.toggle('no-tags', !t.showTags);
+  }, [t.popupMode, t.glowIntensity, t.scaleFocused, t.animationSpeed, t.dimOthers, t.showTags]);
+
+  // Sync focus state to DOM classes
+  React.useEffect(() => {
+    const grid = document.getElementById('grid');
+    if (!grid) return;
+    const cards = cardsRef.current;
+    cards.forEach(c => c.classList.toggle('focused', c.dataset.id === focusedId));
+    grid.classList.toggle('has-focus', !!focusedId);
+  }, [focusedId]);
+
+  // Wire card clicks + hover
+  React.useEffect(() => {
+    const cards = [...document.querySelectorAll('#grid .card')];
+    cardsRef.current = cards;
+
+    const onClick = (card) => (e) => {
+      e.stopPropagation();
+      setFocusedId(prev => prev === card.dataset.id ? null : card.dataset.id);
+    };
+    const onEnter = (card) => () => {
+      if (!t.autoFocusOnHover) return;
+      clearTimeout(hoverTimer.current);
+      hoverTimer.current = setTimeout(() => setFocusedId(card.dataset.id), 180);
+    };
+    const onLeave = () => clearTimeout(hoverTimer.current);
+
+    const handlers = cards.map(c => {
+      const h = { click: onClick(c), enter: onEnter(c), leave: onLeave };
+      c.addEventListener('click', h.click);
+      c.addEventListener('mouseenter', h.enter);
+      c.addEventListener('mouseleave', h.leave);
+      return [c, h];
+    });
+
+    const onDocClick = (e) => {
+      if (!e.target.closest('.card') && !e.target.closest('.util') &&
+          !e.target.closest('.twk-panel') && !e.target.closest('.detail-modal-card') &&
+          !e.target.closest('.detail-sidebar')) {
+        setFocusedId(null);
+      }
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') setFocusedId(null);
+      const n = parseInt(e.key, 10);
+      if (n >= 1 && n <= cards.length) setFocusedId(cards[n-1].dataset.id);
+    };
+
+    document.addEventListener('click', onDocClick);
+    document.addEventListener('keydown', onKey);
+
+    const reset = document.getElementById('resetBtn');
+    const onReset = (e) => { e.stopPropagation(); setFocusedId(null); };
+    reset?.addEventListener('click', onReset);
+
+    return () => {
+      handlers.forEach(([c, h]) => {
+        c.removeEventListener('click', h.click);
+        c.removeEventListener('mouseenter', h.enter);
+        c.removeEventListener('mouseleave', h.leave);
+      });
+      document.removeEventListener('click', onDocClick);
+      document.removeEventListener('keydown', onKey);
+      reset?.removeEventListener('click', onReset);
+    };
+  }, [t.autoFocusOnHover]);
+
+  // Extract detail for floating modes
+  const focusedCard = focusedId ? cardsRef.current.find(c => c.dataset.id === focusedId) : null;
+  const detailData = React.useMemo(() => {
+    if (!focusedCard) return null;
+    const num = focusedCard.querySelector('.card-head .num')?.textContent || '';
+    const ttl = focusedCard.querySelector('.card-head .card-title')?.innerHTML || '';
+    const detailEl = focusedCard.querySelector('.detail');
+    const body = detailEl?.innerHTML || '';
+    const accent = getComputedStyle(focusedCard).getPropertyValue('--accent').trim();
+    const accentBg = getComputedStyle(focusedCard).getPropertyValue('--accent-bg').trim();
+    return { num, ttl, body, accent, accentBg };
+  }, [focusedId, focusedCard]);
+
+  const close = () => setFocusedId(null);
+
+  return (
+    <>
+      {/* Floating detail (modal or sidebar mode) */}
+      {t.popupMode === 'modal' && (
+        <div className={"detail-modal " + (focusedId ? "open" : "")} onClick={close}>
+          <div className="detail-modal-backdrop"></div>
+          {detailData && (
+            <div className="detail-modal-card" style={{ "--accent": detailData.accent, "--accent-bg": detailData.accentBg }} onClick={e => e.stopPropagation()}>
+              <button className="detail-modal-close" onClick={close}>✕</button>
+              <div className="detail-modal-head">
+                <div className="num" style={{ background: detailData.accent, color: '#fff', fontFamily: 'JetBrains Mono, monospace', fontWeight: 600, display: 'grid', placeItems: 'center', borderRadius: 12 }}>{detailData.num}</div>
+                <div className="ttl" dangerouslySetInnerHTML={{ __html: detailData.ttl }}></div>
+              </div>
+              <div className="detail-modal-body" dangerouslySetInnerHTML={{ __html: detailData.body }}></div>
+            </div>
+          )}
+        </div>
+      )}
+      {t.popupMode === 'sidebar' && (
+        <>
+          {focusedId && <div className="detail-modal-backdrop" style={{ position:'fixed', inset:0, zIndex: 199, background:'rgba(20,18,12,0.35)', backdropFilter:'blur(2px)' }} onClick={close}></div>}
+          <div className={"detail-sidebar " + (focusedId ? "open" : "")} style={detailData ? { "--accent": detailData.accent, "--accent-bg": detailData.accentBg } : {}}>
+            {detailData && (
+              <>
+                <button className="detail-modal-close" onClick={close} style={{ position:'absolute', top:16, right:16 }}>✕</button>
+                <div className="detail-modal-head">
+                  <div style={{ width:44, height:44, borderRadius:12, background: detailData.accent, color:'#fff', fontFamily:'JetBrains Mono, monospace', fontWeight:600, fontSize:20, display:'grid', placeItems:'center' }}>{detailData.num}</div>
+                  <div style={{ fontSize:24, fontWeight:700 }} dangerouslySetInnerHTML={{ __html: detailData.ttl }}></div>
+                </div>
+                <div dangerouslySetInnerHTML={{ __html: detailData.body }}></div>
+              </>
+            )}
+          </div>
+        </>
+      )}
+
+      <TweaksPanel title="Tweaks">
+        <TweakSection label="講解重點 彈出模式" />
+        <TweakRadio
+          label="Popup mode"
+          value={t.popupMode}
+          options={[
+            { value: 'inline', label: '卡內展開' },
+            { value: 'modal', label: '置中彈窗' },
+            { value: 'sidebar', label: '側邊抽屜' },
+          ]}
+          onChange={v => setTweak('popupMode', v)}
+        />
+        <TweakToggle label="滑鼠移入即聚焦" value={t.autoFocusOnHover} onChange={v => setTweak('autoFocusOnHover', v)} />
+
+        <TweakSection label="聚焦視覺" />
+        <TweakSlider label="光暈強度" value={t.glowIntensity} min={0} max={2} step={0.1}
+                     onChange={v => setTweak('glowIntensity', v)} />
+        <TweakSlider label="卡片放大倍率" value={t.scaleFocused} min={1} max={1.15} step={0.01}
+                     onChange={v => setTweak('scaleFocused', v)} />
+        <TweakToggle label="其他卡片變暗" value={t.dimOthers} onChange={v => setTweak('dimOthers', v)} />
+        <TweakSlider label="動畫速度" value={t.animationSpeed} min={0.4} max={2} step={0.1}
+                     onChange={v => setTweak('animationSpeed', v)} />
+
+        <TweakSection label="內容" />
+        <TweakToggle label="顯示標籤" value={t.showTags} onChange={v => setTweak('showTags', v)} />
+      </TweaksPanel>
+    </>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('tweaksRoot'));
+root.render(<App />);
+</script>
+
+<script>
+// Background music (vanilla)
+(() => {
+  const bgm = document.getElementById('bgm');
+  const btn = document.getElementById('musicBtn');
+  const icon = document.getElementById('musicIcon');
+  const label = document.getElementById('musicLabel');
+  bgm.volume = 0.25;
+  btn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    if (bgm.paused) {
+      try {
+        await bgm.play();
+        btn.classList.add('on');
+        icon.textContent = '♫';
+        label.textContent = '暫停音樂';
+      } catch (err) {
+        label.textContent = '無法播放';
+      }
+    } else {
+      bgm.pause();
+      btn.classList.remove('on');
+      icon.textContent = '♪';
+      label.textContent = '播放音樂';
+    }
+  });
+})();
+</script>
+
+</body>
+</html>
